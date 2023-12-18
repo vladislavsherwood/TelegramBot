@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-
+	//Клиент для общения с телеграмом
 	tgClient := telegram.New(mustBotHost(), mustToken())
 
 	//token = flags.Get(token)
@@ -16,6 +16,7 @@ func main() {
 
 }
 
+// Флаг с тг токеном, должен быть не пустым, иначе выдаст ошибку
 func mustToken() string {
 	token := flag.String(
 		"t",
