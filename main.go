@@ -2,21 +2,40 @@ package main
 
 import (
 	"flag"
-	"github.com/vladislavsherwood/TelegramBot/clients/telegram"
+	tgClient "github.com/vladislavsherwood/TelegramBot/clients/telegram"
+	"github.com/vladislavsherwood/TelegramBot/consumer/event_consumer"
+	"github.com/vladislavsherwood/TelegramBot/events/telegram"
+	"github.com/vladislavsherwood/TelegramBot/lib/storage/files"
 	"log"
+)
+
+const (
+	// Хост
+	tgBotHost = "api.telegram.org"
+	// Хранилище
+	storagePath = "files_storage"
+	// Размер пачки
+	batchSize = 100
 )
 
 func main() {
 	//Клиент для общения с телеграмом
-	tgClient := telegram.New(mustBotHost(), mustToken())
+	eventsProcessor := telegram.New(
+		tgClient.New(tgBotHost, mustToken()),
+		files.New(storagePath),
+	)
 
-	//token = flags.Get(token)
+	log.Print("service started")
 
-	//fetcher = fetcher.New(tgClient)
+	consumer := event_consumer.New(eventsProcessor, eventsProcessor, batchSize)
+
+	if err := consumer.Start(); err != nil {
+		log.Fatal()
+	}
 
 }
 
-// Флаг с тг токеном, должен быть не пустым, иначе выдаст ошибку
+// Флаг с тг токеном (должен быть не пустым, иначе выдаст ошибку)
 func mustToken() string {
 	token := flag.String(
 		"t",

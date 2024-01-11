@@ -10,42 +10,42 @@ import (
 	"strconv"
 )
 
+// Client представляет клиент Telegram API.
 type Client struct {
-	// Хост API сервиса тг
-	host string
-	// Базовый путь, с которого начинаются все запросы
+	host     string
 	basePath string
-	//
-	client http.Client
+	client   http.Client
 }
 
 const (
 	getUpdatesMethod  = "getUpdates"
-	sendMessageMethod = "getUpdates"
+	sendMessageMethod = "sendMessage"
 )
 
-// New - Функция, создающая клиент
-func New(host string, token string) Client {
-	return Client{
+// New создает новый экземпляр клиента Telegram API.
+func New(host string, token string) *Client {
+	return &Client{
 		host:     host,
 		basePath: newBasePath(token),
 		client:   http.Client{},
 	}
 }
 
-// newBasePath - Базовый путь, формирующийся из токена
+// newBasePath генерирует базовый путь из токена.
 func newBasePath(token string) string {
 	return "bot" + token
 }
 
-// Updates - Получение сообщений клиентом
+// Updates получает сообщения для клиента.
 func (c *Client) Updates(offset int, limit int) ([]Update, error) {
 	q := url.Values{}
-	// Сообщение серверу, с какого апдейта (или сообщения) начинать получение информации.
-	q.Add("offset" /*Конвертирует в string "Integer (I) to (to) ASCII (a)"*/, strconv.Itoa(offset))
-	// Максимальное количество апдейтов, получаемое за один запрос
-	q.Add("limit" /*Конвертирует в string "Integer (I) to (to) ASCII (a)"*/, strconv.Itoa(limit))
+	// Указывает серверу ID апдейта или сообщения, с которого начать получение информации.
+	q.Add("offset", strconv.Itoa(offset))
+	// Максимальное количество апдейтов, получаемое за один запрос.
+	q.Add("limit", strconv.Itoa(limit))
 
+	// doRequest выполняет HTTP-запрос для получения информации с использованием метода getUpdatesMethod и параметров q.
+	// В случае ошибки в процессе выполнения запроса возвращается nil и ошибка.
 	data, err := c.doRequest(getUpdatesMethod, q)
 	if err != nil {
 		return nil, err
@@ -53,40 +53,49 @@ func (c *Client) Updates(offset int, limit int) ([]Update, error) {
 
 	var res UpdatesResponse
 
+	// json.Unmarshal распаковывает данные, полученные от сервера, и сохраняет их в переменной res.
+	// В случае ошибки в процессе распаковки возвращается nil и ошибка.
 	if err := json.Unmarshal(data, &res); err != nil {
 		return nil, err
 	}
 	return res.Result, nil
 }
 
-func (c *Client) SendMessage(chatId int, text string) error {
+// SendMessage отправляет сообщение клиенту, используя метод API sendMessageMethod.
+// chatId - идентификатор чата, куда будет отправлено сообщение.
+// text - текст сообщения, которое будет отправлено.
+// Создается объект url.Values для передачи параметров запроса, включая chatId и text.
+func (c *Client) SendMessage(chatID int, text string) error {
 	q := url.Values{}
-	q.Add("chatId", strconv.Itoa(chatId))
+	q.Add("chat_id", strconv.Itoa(chatID))
 	q.Add("text", text)
 
+	// Вызывается функция doRequest, которая отправляет запрос на сервер Telegram с методом sendMessageMethod и параметрами q.
 	_, err := c.doRequest(sendMessageMethod, q)
+	// Если произошла ошибка при выполнении запроса, функция возвращает ошибку, обернутую в дополнительное описание.
 	if err != nil {
-		return e.Wrap("can't send message", err)
+		return e.Wrap("не удалось отправить сообщение", err)
 	}
 	return nil
 }
 
+// doRequest выполняет HTTP-запрос к Telegram API.
 func (c *Client) doRequest(method string, query url.Values) (data []byte, err error) {
-	// Дефер ошибки в конце функции doRequest
-	defer func() { err = e.WrapIfErr("cant do request: %w", err) }()
+	// Обработка ошибок в конце функции doRequest.
+	defer func() { err = e.WrapIfErr("не удалось выполнить запрос: %w", err) }()
 	u := url.URL{
 		Scheme: "https",
 		Host:   c.host,
-		// path.Join умно вставляет слэш когда надо
+		// path.Join вставляет слеш, если необходимо.
 		Path: path.Join(c.basePath, method),
 	}
-	// Создание объекта запроса
+	// Создание объекта запроса.
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Енкодинг объекта запроса
+	// Кодирование объекта запроса.
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.client.Do(req)

@@ -8,6 +8,7 @@ import (
 	"github.com/vladislavsherwood/TelegramBot/lib/storage"
 )
 
+// 6538404316:AAHjY7rCrTM3Kz5UJzh0eZ-Jrzre3aSr2Ow
 type Processor struct {
 	tg      *telegram.Client
 	offset  int
@@ -15,7 +16,7 @@ type Processor struct {
 }
 
 type Meta struct {
-	chatID   int
+	ChatID   int
 	Username string
 }
 
@@ -57,11 +58,11 @@ func (p *Processor) Fetch(limit int) ([]events.Event, error) {
 func (p *Processor) Process(event events.Event) error {
 	switch event.Type {
 	case events.Message:
-		p.processMessage(event)
+		return p.processMessage(event)
 	default:
 		return e.Wrap("can't process message", ErrUnknownErrType)
-
 	}
+
 }
 
 func (p *Processor) processMessage(event events.Event) error {
@@ -71,14 +72,16 @@ func (p *Processor) processMessage(event events.Event) error {
 	if err != nil {
 		return e.Wrap("can't process message", err)
 	}
-
+	if err := p.doCmd(event.Text, meta.ChatID, meta.Username); err != nil {
+		return e.Wrap("can't process message", err)
+	}
 	return nil
 }
 
 func meta(event events.Event) (Meta, error) {
 	res, ok := event.Meta.(Meta)
 	if !ok {
-		return meta{}, e.Wrap("can't get meta", ErrUnknownMetaType)
+		return Meta{}, e.Wrap("can't get meta", ErrUnknownMetaType)
 	}
 	return res, nil
 }
@@ -91,7 +94,7 @@ func event(upd telegram.Update) events.Event {
 	}
 	if updType == events.Message {
 		res.Meta = Meta{
-			chatID:   upd.Message.Chat.ID,
+			ChatID:   upd.Message.Chat.ID,
 			Username: upd.Message.From.Username,
 		}
 	}
